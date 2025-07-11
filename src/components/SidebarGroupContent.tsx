@@ -46,7 +46,7 @@ function SidebarGroupContent({ notes }: Props) {
     <SidebarGroupContentShadCN>
       <div className="relative flex items-center">
         <SearchIcon className="absolute left-2 size-4" />
-        <input
+        <Input
           className="bg-grey-100 pl-8 border w-full rounded py-2"
           placeholder="Search your notes..."
           value={searchText}
