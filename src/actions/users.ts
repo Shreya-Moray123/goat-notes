@@ -1,26 +1,27 @@
-"use server"
-
-import { createClient } from "@/auth/server"
+"use server";
+import { createClient } from "@/auth/server";
+import { handleError } from "@/lib/utils";
 import { prisma } from "@/db/prisma";
-import { handleError } from "@/lib/utils"
 
-export const loginAction = async(email: string, password: string) => {
-    try{
-        const{auth}= await createClient()
 
-        const{error}= await auth.signInWithPassword({
-            email,
-            password
-        })
-        if(error) throw error
 
-        return{errorMessage: null};
+export const loginAction = async (email: string, password: string) => {
+  try {
+    const { auth } = await createClient();
+    const { error } = await auth.signInWithPassword({ email, password });
+    if (error) throw error;
 
-    }catch(error){
-        return handleError(error)
+    // Verify that the user is actually logged in after sign-in
+    const userObject = await auth.getUser();
+    if (!userObject || !userObject.data.user) {
+      throw new Error("Failed to authenticate user");
     }
-};
 
+    return { errorMessage: null };
+  } catch (error) {
+    return handleError(error);
+  }
+};
 export const logOutAction = async () => {
   try {
     const { auth } = await createClient();
@@ -34,38 +35,25 @@ export const logOutAction = async () => {
   }
 };
 
-export const signUpAction = async(email: string, password: string) => {
-    try{
-        const{auth}= await createClient()
+export const signUpAction = async (email: string, password: string) => {
+  try {
+    const { auth } = await createClient();
+    const { data, error } = await auth.signUp({ email, password });
+    if (error) throw error;
 
-        const{data,error}= await auth.signUp({
-            email,
-            password
-        })
-        if(error) throw error;
+    const userId = data.user?.id;
+    if (!userId) throw new Error("Failed to get user ID after signup");
 
-        const userId= data.user?.id;
-        if(!userId) throw new Error("Error signing up");
-
-        //add user to the database
-
-        await prisma.user.create({
+    
+    await prisma.user.create({
       data: {
         id: userId,
         email,
       },
     });
 
-
-        return{errorMessage: null};
-
-    }catch(error){
-        return handleError(error)
-    }
+    return { errorMessage: null };
+  } catch (error) {
+    return handleError(error);
+  }
 };
-
-
-
-
-
-
