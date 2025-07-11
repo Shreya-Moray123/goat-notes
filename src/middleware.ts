@@ -1,8 +1,5 @@
-//import { type NextRequest } from 'next/server'
-//import { updateSession } from '../utils/supabase/middleware'
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-
 
 export async function middleware(request: NextRequest) {
   return await updateSession(request)
@@ -10,19 +7,14 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
-
-
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
-
-  //console.log("middleware ran");
 
   const supabase = createServerClient(
     process.env.SUPABASE_URL!,
@@ -45,7 +37,7 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-   const isAuthRoute =
+  const isAuthRoute =
     request.nextUrl.pathname === "/login" ||
     request.nextUrl.pathname === "/sign-up";
 
@@ -54,42 +46,50 @@ export async function updateSession(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
     if (user) {
-      return NextResponse.redirect(
-        new URL("/", process.env.NEXT_PUBLIC_BASE_URL),
-      );
+      return NextResponse.redirect(new URL("/", process.env.NEXT_PUBLIC_BASE_URL));
     }
   }
 
-  const { searchParams, pathname } = new URL(request.url);
+  const { searchParams, pathname } = new URL(request.url)
 
   if (!searchParams.get("noteId") && pathname === "/") {
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await supabase.auth.getUser()
 
     if (user) {
-      const { newestNoteId } = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/api/fetch-newest-note?userId=${user.id}`,
-      ).then((res) => res.json());
+      // Get newest note directly from Supabase
+      const { data: newestNote } = await supabase
+        .from("Note")
+        .select("id")
+        .eq("authorId", user.id)
+        .order("createdAt", { ascending: false })
+        .limit(1)
+        .single();
+
+      const newestNoteId = newestNote?.id;
+
       if (newestNoteId) {
-        const url = request.nextUrl.clone();
-        url.searchParams.set("noteId", newestNoteId);
+        const url = request.nextUrl.clone()
+        url.searchParams.set("noteId", newestNoteId)
         return NextResponse.redirect(url);
       } else {
-        const { noteId } = await fetch(
-          `${process.env.NEXT_PUBLIC_BASE_URL}/api/create-new-note?userId=${user.id}`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          },
-        ).then((res) => res.json());
+        // Create a new note directly
+        const { data: newNote } = await supabase
+          .from("Note")
+          .insert([{ authorId: user.id, content: "" }])
+          .select("id")
+          .single();
+          
+
+        const noteId = newNote?.id;
+
         const url = request.nextUrl.clone();
         url.searchParams.set("noteId", noteId);
         return NextResponse.redirect(url);
       }
     }
   }
- return supabaseResponse
+
+  return supabaseResponse;
 }
