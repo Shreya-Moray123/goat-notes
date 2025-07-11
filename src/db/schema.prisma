@@ -19,7 +19,7 @@ model Note {
 model User {
   id    String         @id @default(uuid())
   email String         @unique
-  notes Note[]
+  posts Note[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt @default(now())
 }
